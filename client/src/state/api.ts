@@ -34,7 +34,7 @@ export interface PurchaseSummary {
 export interface ExpenseSummary {
     expenseSummaryId: string;
     totalExpenses: number;
-    date: String;
+    date: string;
 }
 
 export interface ExpenseByCategorySummary {
