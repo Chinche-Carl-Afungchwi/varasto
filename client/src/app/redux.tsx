@@ -9,7 +9,6 @@ import {
 import globalReducer from "@/state";
 import { api } from "@/state/api";
 import { setupListeners } from "@reduxjs/toolkit/query";
-
 import {
   persistStore,
   persistReducer,
@@ -24,34 +23,38 @@ import { PersistGate } from "redux-persist/integration/react";
 import createWebStorage from "redux-persist/lib/storage/createWebStorage";
 
 /* REDUX PERSISTENCE */
+// Create a no-operation storage for server-side rendering (SSR) compatibility
 const createNoopStorage = () => {
   return {
-    getItem(_key: any) {
+    getItem() {
       return Promise.resolve(null);
     },
-    setItem(_key: any, value: any) {
-      return Promise.resolve(value);
-    },
-    removeItem(_key: any) {
+    setItem(_value: any) {
       return Promise.resolve();
     },
-  }; 
+    removeItem() {
+      return Promise.resolve();
+    },
+  };
 };
 
+// Use local storage in the browser, or fallback to noop storage on the server
 const storage =
-  typeof window === "undefined"
-    ? createNoopStorage()
-    : createWebStorage("local");
+  typeof window !== "undefined"
+    ? createWebStorage("local")
+    : createNoopStorage();
 
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["global"],
+  whitelist: ["global"], // Persist only the `global` slice of the state
 };
+
 const rootReducer = combineReducers({
   global: globalReducer,
-  [api.reducerPath]: api.reducer,
+  [api.reducerPath]: api.reducer, // Add API slice for data fetching
 });
+
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 /* REDUX STORE */
@@ -63,7 +66,7 @@ export const makeStore = () => {
         serializableCheck: {
           ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
         },
-      }).concat(api.middleware),
+      }).concat(api.middleware), // Include API middleware for queries
   });
 };
 
@@ -80,11 +83,14 @@ export default function StoreProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const storeRef = useRef<AppStore>();
+  // Use `useRef` to ensure store is created only once
+  const storeRef = useRef<AppStore | null>(null);
   if (!storeRef.current) {
     storeRef.current = makeStore();
     setupListeners(storeRef.current.dispatch);
   }
+
+  // Create a persistor instance for the store
   const persistor = persistStore(storeRef.current);
 
   return (
